@@ -22,7 +22,7 @@ class FFrame
 {
 public:
 	void *vmt_{};
-	char unknown_data_0[12]{};
+	char unknown_data_00_[12]{};
 	UStruct *node_{};
 	UObject *object_{};
 	unsigned char *code_{};
@@ -53,98 +53,63 @@ extern CallFunctionPrototype original_callfunction;
 
 enum class FunctionHookType
 {
-	kUnknown,
 	kPre,
-	kPost,
-	kPreAndPost
+	kPost
 };
 
 enum class FunctionHookAbsorb
 {
-	kUnknown,
 	kDoNotAbsorb,
 	kAbsorb
+};
+
+enum class HookResult
+{
+	kSuccess,
+	kFailedIncorrectHookTypeAndHookAbsorb,
+	kFailedToFindUFunction,
+	kFailedUFunctionOutOfBounds,
+	kFailedUnknownHookType
+};
+
+enum class ExecuteHookResult
+{
+	kSuccess,
+	kFailedNoOriginalFunctionFound
 };
 
 template <typename UFunctionHookPrototype>
 class UFunctionHooks
 {
-	class UFunctionHookInformation
+public:
+	struct UFunctionHookInformation
 	{
-	public:
 		std::string name_{};
 		UFunction *ufunction_{};
 		UFunctionHookPrototype hook_function_{};
-		FunctionHookType hook_type_{FunctionHookType::kUnknown};
-		FunctionHookAbsorb hook_absorb_{FunctionHookAbsorb::kUnknown};
+		FunctionHookType hook_type_{FunctionHookType::kPre};
+		FunctionHookAbsorb hook_absorb_{FunctionHookAbsorb::kDoNotAbsorb};
 	};
 
-	class UFunctionHooksInformation
-	{
-		using Hooks = std::vector<UFunctionHookInformation>;
-
-	public:
-		Hooks pre_hooks_{};
-		Hooks post_hooks_{};
-	};
-
-	std::vector<UFunctionHooksInformation> ufunction_internal_index_to_hook_information = std::vector<UFunctionHooksInformation>(kSizeOfUFunctionInternalIndex);
-
-public:
 	UFunctionHookPrototype original_function_{};
+
 	UFunctionHooks(UFunctionHookPrototype original_function) : original_function_(original_function) {};
 
-public:
-	void AddHook(const std::string &ufunction_as_string, UFunctionHookPrototype hook_function,
-				 FunctionHookType hook_type = FunctionHookType::kPre,
-				 FunctionHookAbsorb hook_absorb = FunctionHookAbsorb::kDoNotAbsorb)
+	HookResult AddHook(const UFunctionHookInformation &ufunction_hook_information)
 	{
-		auto ufunction_object{reinterpret_cast<UFunction *>(UObject::FindObject<UFunction>(ufunction_as_string.c_str()))};
-		if (ufunction_object)
-		{
-			PLOG_INFO << std::format("Found UFunction: {0}", ufunction_as_string);
-			UFunctionHookInformation ufunction_hook_information{ufunction_as_string, ufunction_object,
-																hook_function, hook_type, hook_absorb};
-			switch (hook_type)
-			{
-			case FunctionHookType::kPre:
-			{
-				ufunction_internal_index_to_hook_information[ufunction_object->ObjectInternalInteger].pre_hooks_.push_back(std::move(ufunction_hook_information));
-				break;
-			}
-			case FunctionHookType::kPost:
-			{
-				ufunction_internal_index_to_hook_information[ufunction_object->ObjectInternalInteger].post_hooks_.push_back(std::move(ufunction_hook_information));
-				break;
-			}
-			case FunctionHookType::kPreAndPost:
-			{
-				ufunction_internal_index_to_hook_information[ufunction_object->ObjectInternalInteger].pre_hooks_.push_back(ufunction_hook_information);
-				ufunction_internal_index_to_hook_information[ufunction_object->ObjectInternalInteger].post_hooks_.push_back(ufunction_hook_information);
-				break;
-			}
-			}
-
-			if (hook_absorb == FunctionHookAbsorb::kAbsorb)
-			{
-				PLOG_WARNING << std::format("Added an abosrbing hook to UFunction: {0}", ufunction_as_string);
-			}
-		}
-		else
-		{
-			PLOG_ERROR << std::format("Failed to find UFunction: {0}", ufunction_as_string);
-		}
+		return AddHook(ufunction_hook_information.name_, ufunction_hook_information.hook_function_,
+					   ufunction_hook_information.hook_type_, ufunction_hook_information.hook_absorb_);
 	}
 
 	template <typename... Args>
-	const void ExecuteHook(UFunction *ufunction, Args &&...args)
+	ExecuteHookResult ExecuteHook(UFunction *ufunction, Args &&...args) const
 	{
 		if (!original_function_)
 		{
-			return;
+			return ExecuteHookResult::kFailedNoOriginalFunctionFound;
 		}
 
-		auto hooks{GetHooks(ufunction)};
+		const auto hooks{GetHooks(ufunction)};
 
 		if (!hooks)
 		{
@@ -162,21 +127,77 @@ public:
 			if (!absorbs)
 			{
 				original_function_(std::forward<Args>(args)...);
+			}
 
-				for (auto &ufunction_hook_information : hooks->post_hooks_)
-				{
-					ufunction_hook_information.hook_function_(args...);
-				}
+			for (auto &ufunction_hook_information : hooks->post_hooks_)
+			{
+				ufunction_hook_information.hook_function_(args...);
 			}
 		}
+		return ExecuteHookResult::kSuccess;
 	}
 
 private:
-	const UFunctionHooksInformation *GetHooks(const UFunction *ufunction_object)
+	struct UFunctionHooksInformation
 	{
-		if (ufunction_object && ufunction_object->ObjectInternalInteger < ufunction_internal_index_to_hook_information.size())
+		using Hooks = std::vector<UFunctionHookInformation>;
+		Hooks pre_hooks_{};
+		Hooks post_hooks_{};
+	};
+
+	using Hooks = std::vector<UFunctionHooksInformation>;
+	Hooks ufunction_internal_index_to_hook_information_ = Hooks(kSizeOfUFunctionInternalIndex);
+
+	HookResult AddHook(const std::string &ufunction_as_string, UFunctionHookPrototype hook_function,
+					   FunctionHookType hook_type = FunctionHookType::kPre,
+					   FunctionHookAbsorb hook_absorb = FunctionHookAbsorb::kDoNotAbsorb)
+	{
+
+		if (hook_type != FunctionHookType::kPre && hook_absorb == FunctionHookAbsorb::kAbsorb)
 		{
-			return &ufunction_internal_index_to_hook_information[ufunction_object->ObjectInternalInteger];
+			return HookResult::kFailedIncorrectHookTypeAndHookAbsorb;
+		}
+
+		auto ufunction_object{reinterpret_cast<UFunction *>(UObject::FindObject<UFunction>(ufunction_as_string.c_str()))};
+		if (ufunction_object)
+		{
+			const auto &index{ufunction_object->ObjectInternalInteger};
+
+			if (index >= kSizeOfUFunctionInternalIndex)
+			{
+				return HookResult::kFailedUFunctionOutOfBounds;
+			}
+
+			UFunctionHookInformation ufunction_hook_information{ufunction_as_string, ufunction_object,
+																hook_function, hook_type, hook_absorb};
+			switch (hook_type)
+			{
+			case FunctionHookType::kPre:
+			{
+				ufunction_internal_index_to_hook_information_[index].pre_hooks_.push_back(ufunction_hook_information);
+				break;
+			}
+			case FunctionHookType::kPost:
+			{
+				ufunction_internal_index_to_hook_information_[index].post_hooks_.push_back(ufunction_hook_information);
+				break;
+			}
+			default:
+			{
+				return HookResult::kFailedUnknownHookType;
+			}
+			}
+			return HookResult::kSuccess;
+		}
+		return HookResult::kFailedToFindUFunction;
+	}
+
+	const UFunctionHooksInformation *GetHooks(const UFunction *ufunction_object) const
+	{
+		const auto &index{ufunction_object->ObjectInternalInteger};
+		if (ufunction_object && index < kSizeOfUFunctionInternalIndex)
+		{
+			return &ufunction_internal_index_to_hook_information_[index];
 		}
 		else
 		{
