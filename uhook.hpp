@@ -3,6 +3,8 @@
 #include <format>
 #include <unordered_map>
 #include <vector>
+#include <memory>
+#include <mutex>
 #include <plog/Log.h>
 #include <CppSDK/SDK/CoreUObject_classes.hpp>
 
@@ -109,7 +111,12 @@ public:
 
 	UFunctionHookPrototype original_function_{};
 
-	UFunctionHooks(UFunctionHookPrototype original_function) : original_function_(original_function) {};
+	UFunctionHooks(void) = default;/*
+	{
+		std::scoped_lock<std::mutex>(*mutex_);
+		original_function_ = nullptr;
+		ufunction_internal_index_to_hook_information_ = Hooks(kSizeOfUFunctionInternalIndex);
+	}*/
 
 	HookResult AddHook(const UFunctionHookInformation &ufunction_hook_information)
 	{
@@ -120,6 +127,7 @@ public:
 	template <typename... Args>
 	ExecuteHookResult ExecuteHook(UFunction *ufunction, Args &&...args) const
 	{
+		std::scoped_lock<std::mutex>(*mutex_);
 		if (!original_function_)
 		{
 			return ExecuteHookResult::kFailedNoOriginalFunctionFound;
@@ -153,6 +161,12 @@ public:
 		return ExecuteHookResult::kSuccess;
 	}
 
+	void SetOriginalFunction(UFunctionHookPrototype original_function)
+	{
+		std::scoped_lock<std::mutex>(*mutex_);
+		original_function_ = original_function;
+	}
+
 private:
 	struct UFunctionHooksInformation
 	{
@@ -163,12 +177,13 @@ private:
 
 	using Hooks = std::vector<UFunctionHooksInformation>;
 	Hooks ufunction_internal_index_to_hook_information_ = Hooks(kSizeOfUFunctionInternalIndex);
+	inline static std::mutex mutex_{};
 
 	HookResult AddHook(const std::string &ufunction_as_string, UFunctionHookPrototype hook_function,
 					   FunctionHookType hook_type = FunctionHookType::kPre,
 					   FunctionHookAbsorb hook_absorb = FunctionHookAbsorb::kDoNotAbsorb)
 	{
-
+		std::scoped_lock<std::mutex>(*mutex_);
 		if (hook_type != FunctionHookType::kPre && hook_absorb == FunctionHookAbsorb::kAbsorb)
 		{
 			return HookResult::kFailedIncorrectHookTypeAndHookAbsorb;
@@ -201,6 +216,7 @@ private:
 			default:
 			{
 				return HookResult::kFailedUnknownHookType;
+				break;
 			}
 			}
 			return HookResult::kSuccess;
@@ -213,7 +229,15 @@ private:
 		const auto &index{ufunction_object->Index};
 		if (ufunction_object && index < kSizeOfUFunctionInternalIndex)
 		{
-			return &ufunction_internal_index_to_hook_information_[index];
+			const auto &hook_information{ufunction_internal_index_to_hook_information_[index]};
+			if (hook_information.pre_hooks_.size() == 0 && hook_information.post_hooks_.size() == 0)
+			{
+				return nullptr;
+			}
+			else
+			{
+				return &hook_information;
+			}
 		}
 		else
 		{
@@ -223,7 +247,7 @@ private:
 };
 
 extern UFunctionHooks<ProcessEventPrototype> processevent_hooks;
-extern UFunctionHooks<ProcessInternalPrototype> processinternal_hooks;
+// extern UFunctionHooks<ProcessInternalPrototype> processinternal_hooks;
 // extern UFunctionHooks<CallFunctionPrototype> callfunction_hooks;
 
 #define PROCESSEVENT_HOOK(function_hook_name) void __fastcall function_hook_name(UObject *calling_uobject, UFunction *calling_ufunction, void *parameters)
