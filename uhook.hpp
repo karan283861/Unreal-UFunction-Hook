@@ -7,6 +7,7 @@
 #include <SdkHeaders.h>
 
 constexpr size_t kSizeOfUFunctionInternalIndex{2000000};
+constexpr size_t kMaxHookCountPerUFunction{1};
 
 using ProcessEventPrototype = void(__fastcall *)(UObject *calling_uobject,
 												 void *unused, UFunction *calling_ufunction,
@@ -69,6 +70,7 @@ enum class HookResult
 	kFailedIncorrectHookTypeAndHookAbsorb,
 	kFailedToFindUFunction,
 	kFailedUFunctionOutOfBounds,
+	kFailedOverMaxHookCount,
 	kFailedUnknownHookType
 };
 
@@ -93,7 +95,7 @@ public:
 
 	UFunctionHookPrototype original_function_{};
 
-	UFunctionHooks(UFunctionHookPrototype original_function) : original_function_(original_function) {};
+	UFunctionHooks(void) = default;
 
 	HookResult AddHook(const UFunctionHookInformation &ufunction_hook_information)
 	{
@@ -104,7 +106,7 @@ public:
 	template <typename... Args>
 	ExecuteHookResult ExecuteHook(UFunction *ufunction, Args &&...args) const
 	{
-		if (!original_function_)
+		if (!ready_.load(std::memory_order_acquire) || !original_function_)
 		{
 			return ExecuteHookResult::kFailedNoOriginalFunctionFound;
 		}
@@ -137,29 +139,35 @@ public:
 		return ExecuteHookResult::kSuccess;
 	}
 
+	void SetOriginalFunction(UFunctionHookPrototype original_function)
+	{
+		original_function_ = original_function;
+		ready_.store(true, std::memory_order_release);
+	}
+
 private:
 	struct UFunctionHooksInformation
 	{
 		using Hooks = std::vector<UFunctionHookInformation>;
-		Hooks pre_hooks_{};
-		Hooks post_hooks_{};
+		Hooks pre_hooks_{};	 // = Hooks(kMaxHookCountPerUFunction);
+		Hooks post_hooks_{}; // = Hooks(kMaxHookCountPerUFunction);
 	};
 
 	using Hooks = std::vector<UFunctionHooksInformation>;
 	Hooks ufunction_internal_index_to_hook_information_ = Hooks(kSizeOfUFunctionInternalIndex);
+	inline static std::atomic<bool> ready_{};
 
-	HookResult AddHook(const std::string &ufunction_as_string, UFunctionHookPrototype hook_function,
-					   FunctionHookType hook_type = FunctionHookType::kPre,
-					   FunctionHookAbsorb hook_absorb = FunctionHookAbsorb::kDoNotAbsorb)
+	HookResult
+	AddHook(const std::string &ufunction_as_string, UFunctionHookPrototype hook_function,
+			FunctionHookType hook_type = FunctionHookType::kPre,
+			FunctionHookAbsorb hook_absorb = FunctionHookAbsorb::kDoNotAbsorb)
 	{
-
 		if (hook_type != FunctionHookType::kPre && hook_absorb == FunctionHookAbsorb::kAbsorb)
 		{
 			return HookResult::kFailedIncorrectHookTypeAndHookAbsorb;
 		}
 
-		auto ufunction_object{reinterpret_cast<UFunction *>(UObject::FindObject<UFunction>(ufunction_as_string.c_str()))};
-		if (ufunction_object)
+		if (auto ufunction_object{reinterpret_cast<UFunction *>(UObject::FindObject<UFunction>(ufunction_as_string.c_str()))})
 		{
 			const auto &index{ufunction_object->ObjectInternalInteger};
 
@@ -174,17 +182,32 @@ private:
 			{
 			case FunctionHookType::kPre:
 			{
-				ufunction_internal_index_to_hook_information_[index].pre_hooks_.push_back(ufunction_hook_information);
+				if (const auto hook_count{ufunction_internal_index_to_hook_information_[index].pre_hooks_.size()}; hook_count < kMaxHookCountPerUFunction)
+				{
+					ufunction_internal_index_to_hook_information_[index].pre_hooks_.push_back(ufunction_hook_information);
+				}
+				else
+				{
+					return HookResult::kFailedOverMaxHookCount;
+				}
 				break;
 			}
 			case FunctionHookType::kPost:
 			{
-				ufunction_internal_index_to_hook_information_[index].post_hooks_.push_back(ufunction_hook_information);
+				if (const auto hook_count{ufunction_internal_index_to_hook_information_[index].post_hooks_.size()}; hook_count < kMaxHookCountPerUFunction)
+				{
+					ufunction_internal_index_to_hook_information_[index].post_hooks_.push_back(ufunction_hook_information);
+				}
+				else
+				{
+					return HookResult::kFailedOverMaxHookCount;
+				}
 				break;
 			}
 			default:
 			{
 				return HookResult::kFailedUnknownHookType;
+				break;
 			}
 			}
 			return HookResult::kSuccess;
@@ -197,7 +220,15 @@ private:
 		const auto &index{ufunction_object->ObjectInternalInteger};
 		if (ufunction_object && index < kSizeOfUFunctionInternalIndex)
 		{
-			return &ufunction_internal_index_to_hook_information_[index];
+			const auto &hook_information{ufunction_internal_index_to_hook_information_[index]};
+			if (hook_information.pre_hooks_.size() == 0 && hook_information.post_hooks_.size() == 0)
+			{
+				return nullptr;
+			}
+			else
+			{
+				return &hook_information;
+			}
 		}
 		else
 		{

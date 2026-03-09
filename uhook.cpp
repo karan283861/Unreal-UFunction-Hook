@@ -17,7 +17,7 @@ std::string GetIndentedTabString(void)
 #endif
 
 ProcessEventPrototype original_processevent{reinterpret_cast<ProcessEventPrototype>(0)};
-UFunctionHooks<ProcessEventPrototype> processevent_hooks(nullptr);
+UFunctionHooks<ProcessEventPrototype> processevent_hooks{};
 void __fastcall ProcessEventHook(UObject *calling_uobject,
 								 void *unused, UFunction *calling_ufunction,
 								 void *parameters, void *result)
@@ -26,14 +26,17 @@ void __fastcall ProcessEventHook(UObject *calling_uobject,
 	indent_level++;
 	PLOG_VERBOSE << GetIndentedTabString() << std::format("{0} : {1}", calling_ufunction->GetFullName(), calling_uobject->GetFullName());
 #endif
-	processevent_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, calling_ufunction, parameters, result);
+	if (processevent_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, calling_ufunction, parameters, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
+	{
+		return original_processevent(calling_uobject, unused, calling_ufunction, parameters, result);
+	}
 #if defined(_DEBUG)
 	indent_level--;
 #endif
 }
 
 ProcessInternalPrototype original_processinternal{reinterpret_cast<ProcessInternalPrototype>(0)};
-UFunctionHooks<ProcessInternalPrototype> processinternal_hooks(nullptr);
+UFunctionHooks<ProcessInternalPrototype> processinternal_hooks{};
 void __fastcall ProcessInternalHook(UObject *calling_uobject,
 									void *unused, FFrame &stack,
 									void *result)
@@ -43,23 +46,21 @@ void __fastcall ProcessInternalHook(UObject *calling_uobject,
 	indent_level++;
 	PLOG_VERBOSE << GetIndentedTabString() << std::format("{0} : {1}", calling_ufunction->GetFullName(), calling_uobject->GetFullName());
 #endif
-	processinternal_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, stack, result);
+	if (processinternal_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, stack, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
+	{
+		return original_processinternal(calling_uobject, unused, stack, result);
+	}
 #if defined(_DEBUG)
 	indent_level--;
 #endif
 }
 
 CallFunctionPrototype original_callfunction{reinterpret_cast<CallFunctionPrototype>(0)};
-UFunctionHooks<CallFunctionPrototype> callfunction_hooks(nullptr);
+UFunctionHooks<CallFunctionPrototype> callfunction_hooks{};
 void __fastcall CallFunctionHook(UObject *calling_uobject,
 								 void *unused, FFrame &stack,
 								 void *result, UFunction *calling_ufunction)
 {
-	if (!callfunction_hooks.original_function_)
-	{
-		return original_callfunction(calling_uobject, unused, stack, result, calling_ufunction);
-	}
-
 #if defined(_DEBUG)
 	static constexpr unsigned int kFUNC_Native{0x00000400};
 	auto is_native{calling_ufunction->iNative};
@@ -67,8 +68,10 @@ void __fastcall CallFunctionHook(UObject *calling_uobject,
 	indent_level++;
 	PLOG_VERBOSE << GetIndentedTabString() << std::format("{0} {1} : {2}", is_native ? "[NATIVE]" : (is_funcnative ? "[FUNC_Native]" : ""), calling_ufunction->GetFullName(), calling_uobject->GetFullName());
 #endif
-	callfunction_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, stack, result, calling_ufunction);
-
+	if (callfunction_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, stack, result, calling_ufunction) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
+	{
+		return original_callfunction(calling_uobject, unused, stack, result, calling_ufunction);
+	}
 #if defined(_DEBUG)
 	indent_level--;
 #endif
