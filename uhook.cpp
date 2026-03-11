@@ -28,7 +28,7 @@ void __fastcall ProcessEventHook(UObject *calling_uobject,
 #endif
 	if (processevent_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, calling_ufunction, parameters, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 	{
-		return original_processevent(calling_uobject, unused, calling_ufunction, parameters, result);
+		original_processevent(calling_uobject, unused, calling_ufunction, parameters, result);
 	}
 #if defined(_DEBUG)
 	indent_level--;
@@ -48,7 +48,7 @@ void __fastcall ProcessInternalHook(UObject *calling_uobject,
 #endif
 	if (processinternal_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, stack, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 	{
-		return original_processinternal(calling_uobject, unused, stack, result);
+		original_processinternal(calling_uobject, unused, stack, result);
 	}
 #if defined(_DEBUG)
 	indent_level--;
@@ -70,7 +70,7 @@ void __fastcall CallFunctionHook(UObject *calling_uobject,
 #endif
 	if (callfunction_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, stack, result, calling_ufunction) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 	{
-		return original_callfunction(calling_uobject, unused, stack, result, calling_ufunction);
+		original_callfunction(calling_uobject, unused, stack, result, calling_ufunction);
 	}
 #if defined(_DEBUG)
 	indent_level--;
