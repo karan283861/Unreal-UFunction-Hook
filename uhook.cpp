@@ -28,7 +28,7 @@ void __fastcall ProcessEventHook(UObject *calling_uobject,
 #endif
 	if (processevent_hooks.ExecuteHook(calling_ufunction, calling_uobject, calling_ufunction, parameters) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 	{
-		return original_processevent(calling_uobject, calling_ufunction, parameters);
+		original_processevent(calling_uobject, calling_ufunction, parameters);
 	}
 #if defined(_DEBUG)
 	indent_level--;
