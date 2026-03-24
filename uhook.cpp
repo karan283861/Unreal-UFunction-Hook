@@ -16,6 +16,12 @@ std::string GetIndentedTabString(void)
 }
 #endif
 
+std::function<void(const std::string &log_string)> log_function{};
+std::function<UFunction *(const std::string &ufunction_name)> get_ufunction_from_name{};
+std::function<int(const UFunction *ufunction_object)> get_ufunction_id{};
+std::function<std::string(UObject *uobject_object)> get_uobject_name{};
+std::function<bool(const UFunction *ufunction_object)> is_ufunction_native{};
+
 namespace UE3
 {
 	void __fastcall ProcessEventHook(UObject *calling_uobject,
@@ -70,6 +76,14 @@ namespace UE3
 		indent_level--;
 #endif
 	}
+
+	ProcessEventPrototype original_processevent{};
+	ProcessInternalPrototype original_processinternal{};
+	CallFunctionPrototype original_callfunction{};
+
+	UFunctionHooks<ProcessEventPrototype> processevent_hooks{};
+	UFunctionHooks<ProcessInternalPrototype> processinternal_hooks{};
+	UFunctionHooks<CallFunctionPrototype> callfunction_hooks{};
 }
 
 namespace UE4
@@ -126,6 +140,14 @@ namespace UE4
 		indent_level--;
 #endif
 	}
+
+	ProcessEventPrototype original_processevent{};
+	ProcessInternalPrototype original_processinternal{};
+	CallFunctionPrototype original_callfunction{};
+
+	UFunctionHooks<ProcessEventPrototype> processevent_hooks{};
+	UFunctionHooks<ProcessInternalPrototype> processinternal_hooks{};
+	UFunctionHooks<CallFunctionPrototype> callfunction_hooks{};
 }
 
 namespace UE5
@@ -182,4 +204,12 @@ namespace UE5
 		indent_level--;
 #endif
 	}
+
+	ProcessEventPrototype original_processevent{};
+	ProcessInternalPrototype original_processinternal{};
+	CallFunctionPrototype original_callfunction{};
+
+	UFunctionHooks<ProcessEventPrototype> processevent_hooks{};
+	UFunctionHooks<ProcessInternalPrototype> processinternal_hooks{};
+	UFunctionHooks<CallFunctionPrototype> callfunction_hooks{};
 }
