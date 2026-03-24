@@ -24,7 +24,7 @@ namespace UE3
 	{
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), calling_ufunction->GetFullName(), calling_uobject->GetFullName()));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processevent_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, calling_ufunction, parameters, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -42,7 +42,7 @@ namespace UE3
 		auto calling_ufunction = reinterpret_cast<UFunction *>(stack.node_);
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), calling_ufunction->GetFullName(), calling_uobject->GetFullName()));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processinternal_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, stack, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -58,11 +58,9 @@ namespace UE3
 									 void *result, UFunction *calling_ufunction)
 	{
 #if defined(_DEBUG)
-		static constexpr unsigned int kFUNC_Native{0x00000400};
-		auto is_native{calling_ufunction->iNative};
-		auto is_funcnative{calling_ufunction->FunctionFlags & kFUNC_Native};
+		auto is_native{is_ufunction_native(calling_ufunction)};
 		indent_level++;
-		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE]" : (is_funcnative ? "[FUNC_Native]" : ""), calling_ufunction->GetFullName(), calling_uobject->GetFullName()));
+		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE/FUNC_Native]" : "", get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (callfunction_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, stack, result, calling_ufunction) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -82,7 +80,7 @@ namespace UE4
 	{
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), calling_ufunction->GetFullName(), calling_uobject->GetFullName()));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processevent_hooks.ExecuteHook(calling_ufunction, calling_uobject, calling_ufunction, parameters) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -100,7 +98,7 @@ namespace UE4
 		auto calling_ufunction = reinterpret_cast<UFunction *>(stack.node_);
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), calling_ufunction->GetFullName(), calling_uobject->GetFullName()));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processinternal_hooks.ExecuteHook(calling_ufunction, calling_uobject, stack, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -116,11 +114,9 @@ namespace UE4
 									 void *result, UFunction *calling_ufunction)
 	{
 #if defined(_DEBUG)
-		static constexpr unsigned int kFUNC_Native{0x00000400};
-		auto is_native{calling_ufunction->iNative};
-		auto is_funcnative{calling_ufunction->FunctionFlags & kFUNC_Native};
+		auto is_native{is_ufunction_native(calling_ufunction)};
 		indent_level++;
-		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE]" : (is_funcnative ? "[FUNC_Native]" : ""), calling_ufunction->GetFullName(), calling_uobject->GetFullName()));
+		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE/FUNC_Native]" : "", get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (callfunction_hooks.ExecuteHook(calling_ufunction, calling_uobject, stack, result, calling_ufunction) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -140,7 +136,7 @@ namespace UE5
 	{
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), calling_ufunction->GetFullName(), calling_uobject->GetFullName()));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processevent_hooks.ExecuteHook(calling_ufunction, calling_uobject, calling_ufunction, parameters) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -158,7 +154,7 @@ namespace UE5
 		auto calling_ufunction = reinterpret_cast<UFunction *>(stack.node_);
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), calling_ufunction->GetFullName(), calling_uobject->GetFullName()));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processinternal_hooks.ExecuteHook(calling_ufunction, calling_uobject, stack, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -174,11 +170,9 @@ namespace UE5
 									 void *result, UFunction *calling_ufunction)
 	{
 #if defined(_DEBUG)
-		static constexpr unsigned int kFUNC_Native{0x00000400};
-		auto is_native{calling_ufunction->iNative};
-		auto is_funcnative{calling_ufunction->FunctionFlags & kFUNC_Native};
+		auto is_native{is_ufunction_native(calling_ufunction)};
 		indent_level++;
-		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE]" : (is_funcnative ? "[FUNC_Native]" : ""), calling_ufunction->GetFullName(), calling_uobject->GetFullName()));
+		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE/FUNC_Native]" : "", get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (callfunction_hooks.ExecuteHook(calling_ufunction, calling_uobject, stack, result, calling_ufunction) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
