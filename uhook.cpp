@@ -18,13 +18,13 @@ std::string GetIndentedTabString(void)
 
 namespace UE3
 {
-	void __fastcall ProcessEventHook(UObject *calling_uobject,
-									 void *unused, UFunction *calling_ufunction,
+	void __fastcall ProcessEventHook(UObjectInternal *calling_uobject,
+									 void *unused, UFunctionInternal *calling_ufunction,
 									 void *parameters, void *result)
 	{
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObjectInternal *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processevent_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, calling_ufunction, parameters, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -35,14 +35,14 @@ namespace UE3
 #endif
 	}
 
-	void __fastcall ProcessInternalHook(UObject *calling_uobject,
+	void __fastcall ProcessInternalHook(UObjectInternal *calling_uobject,
 										void *unused, FFrame &stack,
 										void *result)
 	{
-		auto calling_ufunction = reinterpret_cast<UFunction *>(stack.node_);
+		auto calling_ufunction = reinterpret_cast<UFunctionInternal *>(stack.node_);
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObjectInternal *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processinternal_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, stack, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -53,14 +53,14 @@ namespace UE3
 #endif
 	}
 
-	void __fastcall CallFunctionHook(UObject *calling_uobject,
+	void __fastcall CallFunctionHook(UObjectInternal *calling_uobject,
 									 void *unused, FFrame &stack,
-									 void *result, UFunction *calling_ufunction)
+									 void *result, UFunctionInternal *calling_ufunction)
 	{
 #if defined(_DEBUG)
 		auto is_native{is_ufunction_native(calling_ufunction)};
 		indent_level++;
-		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE/FUNC_Native]" : "", get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
+		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE/FUNC_Native]" : "", get_uobject_name(reinterpret_cast<UObjectInternal *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (callfunction_hooks.ExecuteHook(calling_ufunction, calling_uobject, unused, stack, result, calling_ufunction) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -74,13 +74,13 @@ namespace UE3
 
 namespace UE4
 {
-	void __fastcall ProcessEventHook(UObject *calling_uobject,
-									 UFunction *calling_ufunction,
+	void __fastcall ProcessEventHook(UObjectInternal *calling_uobject,
+									 UFunctionInternal *calling_ufunction,
 									 void *parameters)
 	{
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObjectInternal *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processevent_hooks.ExecuteHook(calling_ufunction, calling_uobject, calling_ufunction, parameters) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -91,14 +91,14 @@ namespace UE4
 #endif
 	}
 
-	void __fastcall ProcessInternalHook(UObject *calling_uobject,
+	void __fastcall ProcessInternalHook(UObjectInternal *calling_uobject,
 										FFrame &stack,
 										void *result)
 	{
-		auto calling_ufunction = reinterpret_cast<UFunction *>(stack.node_);
+		auto calling_ufunction = reinterpret_cast<UFunctionInternal *>(stack.node_);
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObjectInternal *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processinternal_hooks.ExecuteHook(calling_ufunction, calling_uobject, stack, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -109,14 +109,14 @@ namespace UE4
 #endif
 	}
 
-	void __fastcall CallFunctionHook(UObject *calling_uobject,
+	void __fastcall CallFunctionHook(UObjectInternal *calling_uobject,
 									 FFrame &stack,
-									 void *result, UFunction *calling_ufunction)
+									 void *result, UFunctionInternal *calling_ufunction)
 	{
 #if defined(_DEBUG)
 		auto is_native{is_ufunction_native(calling_ufunction)};
 		indent_level++;
-		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE/FUNC_Native]" : "", get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
+		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE/FUNC_Native]" : "", get_uobject_name(reinterpret_cast<UObjectInternal *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (callfunction_hooks.ExecuteHook(calling_ufunction, calling_uobject, stack, result, calling_ufunction) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -130,13 +130,13 @@ namespace UE4
 
 namespace UE5
 {
-	void __fastcall ProcessEventHook(UObject *calling_uobject,
-									 UFunction *calling_ufunction,
+	void __fastcall ProcessEventHook(UObjectInternal *calling_uobject,
+									 UFunctionInternal *calling_ufunction,
 									 void *parameters)
 	{
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObjectInternal *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processevent_hooks.ExecuteHook(calling_ufunction, calling_uobject, calling_ufunction, parameters) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -147,14 +147,14 @@ namespace UE5
 #endif
 	}
 
-	void __fastcall ProcessInternalHook(UObject *calling_uobject,
+	void __fastcall ProcessInternalHook(UObjectInternal *calling_uobject,
 										FFrame &stack,
 										void *result)
 	{
-		auto calling_ufunction = reinterpret_cast<UFunction *>(stack.node_);
+		auto calling_ufunction = reinterpret_cast<UFunctionInternal *>(stack.node_);
 #if defined(_DEBUG)
 		indent_level++;
-		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
+		log_function(std::format("{0}{1} : {2}", GetIndentedTabString(), get_uobject_name(reinterpret_cast<UObjectInternal *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (processinternal_hooks.ExecuteHook(calling_ufunction, calling_uobject, stack, result) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
@@ -165,14 +165,14 @@ namespace UE5
 #endif
 	}
 
-	void __fastcall CallFunctionHook(UObject *calling_uobject,
+	void __fastcall CallFunctionHook(UObjectInternal *calling_uobject,
 									 FFrame &stack,
-									 void *result, UFunction *calling_ufunction)
+									 void *result, UFunctionInternal *calling_ufunction)
 	{
 #if defined(_DEBUG)
 		auto is_native{is_ufunction_native(calling_ufunction)};
 		indent_level++;
-		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE/FUNC_Native]" : "", get_uobject_name(reinterpret_cast<UObject *>(calling_ufunction)), get_uobject_name(calling_uobject)));
+		log_function(std::format("{0}{1} {2} : {3}", GetIndentedTabString(), is_native ? "[NATIVE/FUNC_Native]" : "", get_uobject_name(reinterpret_cast<UObjectInternal *>(calling_ufunction)), get_uobject_name(calling_uobject)));
 #endif
 		if (callfunction_hooks.ExecuteHook(calling_ufunction, calling_uobject, stack, result, calling_ufunction) == ExecuteHookResult::kFailedNoOriginalFunctionFound)
 		{
