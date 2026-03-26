@@ -10,8 +10,11 @@ class UFunction;
 class UStruct;
 
 constexpr size_t kSizeOfUFunctionInternalIndex{2000000};
+// Maximum number of pre/post hooks that can be installed to a UFunction 
 constexpr size_t kMaxHookCountPerUFunction{1};
 
+// NOTE: Prefer function pointers or lambdas over std::function IF not debugging
+// (and performance is critical). The following are to be called in hot functions.
 inline std::function<void(const std::string &log_string)> log_function{};
 inline std::function<UFunction *(const std::string &ufunction_name)> get_ufunction_from_name{};
 inline std::function<int(const UFunction *ufunction_object)> get_ufunction_id{};
