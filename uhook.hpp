@@ -5,18 +5,33 @@
 #include <string>
 #include <functional>
 
-class UObject;
-class UFunction;
-class UStruct;
+// No point forward declaring these - if the real definitions reside in a namespace then there
+// will be no acceptable conversion during compilation
+// class UObject;
+// class UFunction;
+// class UStruct;
+
+// // No point aliasing as these names - may result in ambiguous symbol or class redefinition
+// using UObject = void;
+// using UFunction = void;
+// using UStruct = void;
+
+using UObjectInternal = void;
+using UFunctionInternal = void;
+using UStructInternal = void;
 
 constexpr size_t kSizeOfUFunctionInternalIndex{2000000};
+// Maximum number of pre/post hooks that can be installed to a UFunction
 constexpr size_t kMaxHookCountPerUFunction{1};
 
+// NOTE: Prefer function pointers or lambdas over std::function IF not debugging
+// (and performance is critical). The following are to be called in hot functions.
 inline std::function<void(const std::string &log_string)> log_function{};
-inline std::function<UFunction *(const std::string &ufunction_name)> get_ufunction_from_name{};
-inline std::function<int(const UFunction *ufunction_object)> get_ufunction_id{};
-inline std::function<std::string(UObject *uobject_object)> get_uobject_name{};
-inline std::function<bool(const UFunction *ufunction_object)> is_ufunction_native{};
+inline std::function<UFunctionInternal *(const std::string &ufunction_name)> get_ufunction_from_name{};
+// inline std::function<int(UFunctionInternal *ufunction_object)> get_ufunction_id{};
+inline int (*get_ufunction_id)(UFunctionInternal *ufunction_object) = nullptr; // Used in hot function
+inline std::function<std::string(UObjectInternal *uobject_object)> get_uobject_name{};
+inline std::function<bool(UFunctionInternal *ufunction_object)> is_ufunction_native{};
 
 enum class FunctionHookType
 {
@@ -54,7 +69,7 @@ public:
 	{
 		std::string name_{};
 		// int ufunction_id_{};
-		// UFunction *ufunction_{};
+		// UFunctionInternal *ufunction_{};
 		UFunctionHookPrototype hook_function_{};
 		FunctionHookType hook_type_{FunctionHookType::kPre};
 		FunctionHookAbsorb hook_absorb_{FunctionHookAbsorb::kDoNotAbsorb};
@@ -120,7 +135,7 @@ public:
 	}
 
 	template <typename... Args>
-	ExecuteHookResult ExecuteHook(UFunction *ufunction, Args &&...args) const
+	ExecuteHookResult ExecuteHook(UFunctionInternal *ufunction, Args &&...args) const
 	{
 		if (!ready_.load(std::memory_order_acquire) || !original_function_)
 		{
@@ -173,7 +188,7 @@ private:
 	Hooks ufunction_internal_index_to_hook_information_ = Hooks(kSizeOfUFunctionInternalIndex);
 	inline static std::atomic<bool> ready_{};
 
-	const UFunctionHooksInformation *GetHooks(const UFunction *ufunction_object) const
+	const UFunctionHooksInformation *GetHooks(UFunctionInternal *ufunction_object) const
 	{
 		const auto index{get_ufunction_id(ufunction_object)};
 		if (ufunction_object && index < kSizeOfUFunctionInternalIndex && index >= 0)
@@ -243,12 +258,12 @@ std::string ValidateUFunctionHookResult(const HookResult &hook_result, const UFu
 
 namespace UE3
 {
-	using ProcessEventPrototype = void(__fastcall *)(UObject *calling_uobject,
-													 void *unused, UFunction *calling_ufunction,
+	using ProcessEventPrototype = void(__fastcall *)(UObjectInternal *calling_uobject,
+													 void *unused, UFunctionInternal *calling_ufunction,
 													 void *parameters, void *result);
 
-	void __fastcall ProcessEventHook(UObject *calling_uobject,
-									 void *unused, UFunction *calling_ufunction,
+	void __fastcall ProcessEventHook(UObjectInternal *calling_uobject,
+									 void *unused, UFunctionInternal *calling_ufunction,
 									 void *parameters, void *result);
 
 	inline ProcessEventPrototype original_processevent{};
@@ -258,31 +273,31 @@ namespace UE3
 	public:
 		void *vmt_{};
 		char unknown_data_00_[12]{};
-		UStruct *node_{};
-		UObject *object_{};
+		UStructInternal *node_{};
+		UObjectInternal *object_{};
 		unsigned char *code_{};
 		char *locals_{};
 		int line_nums_{};
 		FFrame *previous_frame_{};
 	};
 
-	using ProcessInternalPrototype = void(__fastcall *)(UObject *calling_uobject,
+	using ProcessInternalPrototype = void(__fastcall *)(UObjectInternal *calling_uobject,
 														void *unused, FFrame &stack,
 														void *result);
 
-	void __fastcall ProcessInternalHook(UObject *calling_uobject,
+	void __fastcall ProcessInternalHook(UObjectInternal *calling_uobject,
 										void *unused, FFrame &stack,
 										void *result);
 
 	inline ProcessInternalPrototype original_processinternal{};
 
-	using CallFunctionPrototype = void(__fastcall *)(UObject *calling_uobject,
+	using CallFunctionPrototype = void(__fastcall *)(UObjectInternal *calling_uobject,
 													 void *unused, FFrame &stack,
-													 void *result, UFunction *calling_ufunction);
+													 void *result, UFunctionInternal *calling_ufunction);
 
-	void __fastcall CallFunctionHook(UObject *calling_uobject,
+	void __fastcall CallFunctionHook(UObjectInternal *calling_uobject,
 									 void *unused, FFrame &stack,
-									 void *result, UFunction *calling_ufunction);
+									 void *result, UFunctionInternal *calling_ufunction);
 
 	inline CallFunctionPrototype original_callfunction{};
 
@@ -293,12 +308,12 @@ namespace UE3
 
 namespace UE4
 {
-	using ProcessEventPrototype = void(__fastcall *)(UObject *calling_uobject,
-													 UFunction *calling_ufunction,
+	using ProcessEventPrototype = void(__fastcall *)(UObjectInternal *calling_uobject,
+													 UFunctionInternal *calling_ufunction,
 													 void *parameters);
 
-	void __fastcall ProcessEventHook(UObject *calling_uobject,
-									 UFunction *calling_ufunction,
+	void __fastcall ProcessEventHook(UObjectInternal *calling_uobject,
+									 UFunctionInternal *calling_ufunction,
 									 void *parameters);
 
 	inline ProcessEventPrototype original_processevent{};
@@ -308,31 +323,31 @@ namespace UE4
 	public:
 		void *vmt_{};
 		char unknown_data_00_[8]{};
-		UStruct *node_{};
-		UObject *object_{};
+		UStructInternal *node_{};
+		UObjectInternal *object_{};
 		unsigned char *code_{};
 		char *locals_{};
 		int line_nums_{};
 		FFrame *previous_frame_{};
 	};
 
-	using ProcessInternalPrototype = void(__fastcall *)(UObject *calling_uobject,
+	using ProcessInternalPrototype = void(__fastcall *)(UObjectInternal *calling_uobject,
 														FFrame &stack,
 														void *result);
 
-	void __fastcall ProcessInternalHook(UObject *calling_uobject,
+	void __fastcall ProcessInternalHook(UObjectInternal *calling_uobject,
 										FFrame &stack,
 										void *result);
 
 	inline ProcessInternalPrototype original_processinternal{};
 
-	using CallFunctionPrototype = void(__fastcall *)(UObject *calling_uobject,
+	using CallFunctionPrototype = void(__fastcall *)(UObjectInternal *calling_uobject,
 													 FFrame &stack,
-													 void *result, UFunction *calling_ufunction);
+													 void *result, UFunctionInternal *calling_ufunction);
 
-	void __fastcall CallFunctionHook(UObject *calling_uobject,
+	void __fastcall CallFunctionHook(UObjectInternal *calling_uobject,
 									 FFrame &stack,
-									 void *result, UFunction *calling_ufunction);
+									 void *result, UFunctionInternal *calling_ufunction);
 
 	inline CallFunctionPrototype original_callfunction{};
 
@@ -343,12 +358,12 @@ namespace UE4
 
 namespace UE5
 {
-	using ProcessEventPrototype = void(__fastcall *)(UObject *calling_uobject,
-													 UFunction *calling_ufunction,
+	using ProcessEventPrototype = void(__fastcall *)(UObjectInternal *calling_uobject,
+													 UFunctionInternal *calling_ufunction,
 													 void *parameters);
 
-	void __fastcall ProcessEventHook(UObject *calling_uobject,
-									 UFunction *calling_ufunction,
+	void __fastcall ProcessEventHook(UObjectInternal *calling_uobject,
+									 UFunctionInternal *calling_ufunction,
 									 void *parameters);
 
 	inline ProcessEventPrototype original_processevent{};
@@ -358,31 +373,31 @@ namespace UE5
 	public:
 		void *vmt_{};
 		char unknown_data_00_[8]{};
-		UStruct *node_{};
-		UObject *object_{};
+		UStructInternal *node_{};
+		UObjectInternal *object_{};
 		unsigned char *code_{};
 		char *locals_{};
 		int line_nums_{};
 		FFrame *previous_frame_{};
 	};
 
-	using ProcessInternalPrototype = void(__fastcall *)(UObject *calling_uobject,
+	using ProcessInternalPrototype = void(__fastcall *)(UObjectInternal *calling_uobject,
 														FFrame &stack,
 														void *result);
 
-	void __fastcall ProcessInternalHook(UObject *calling_uobject,
+	void __fastcall ProcessInternalHook(UObjectInternal *calling_uobject,
 										FFrame &stack,
 										void *result);
 
 	inline ProcessInternalPrototype original_processinternal{};
 
-	using CallFunctionPrototype = void(__fastcall *)(UObject *calling_uobject,
+	using CallFunctionPrototype = void(__fastcall *)(UObjectInternal *calling_uobject,
 													 FFrame &stack,
-													 void *result, UFunction *calling_ufunction);
+													 void *result, UFunctionInternal *calling_ufunction);
 
-	void __fastcall CallFunctionHook(UObject *calling_uobject,
+	void __fastcall CallFunctionHook(UObjectInternal *calling_uobject,
 									 FFrame &stack,
-									 void *result, UFunction *calling_ufunction);
+									 void *result, UFunctionInternal *calling_ufunction);
 
 	inline CallFunctionPrototype original_callfunction{};
 
@@ -391,12 +406,12 @@ namespace UE5
 	inline UFunctionHooks<CallFunctionPrototype> callfunction_hooks{};
 }
 
-#define UE3_PROCESSEVENT_HOOK(function_hook_name) void __fastcall function_hook_name(UObject *calling_uobject, void *unused, UFunction *calling_ufunction, void *parameters, void *result)
-#define UE3_PROCESSINTERNAL_HOOK(function_hook_name) void __fastcall function_hook_name(UObject *calling_uobject, void *unused, UE3::FFrame &stack, void *result)
+#define UE3_PROCESSEVENT_HOOK(function_hook_name) void __fastcall function_hook_name(UObjectInternal *calling_uobject, void *unused, UFunctionInternal *calling_ufunction, void *parameters, void *result)
+#define UE3_PROCESSINTERNAL_HOOK(function_hook_name) void __fastcall function_hook_name(UObjectInternal *calling_uobject, void *unused, UE3::FFrame &stack, void *result)
 
-#define UE4_PROCESSEVENT_HOOK(function_hook_name) void __fastcall function_hook_name(UObject *calling_uobject, UFunction *calling_ufunction, void *parameters)
+#define UE4_PROCESSEVENT_HOOK(function_hook_name) void __fastcall function_hook_name(UObjectInternal *calling_uobject, UFunctionInternal *calling_ufunction, void *parameters)
 
-#define UE5_PROCESSEVENT_HOOK(function_hook_name) void __fastcall function_hook_name(UObject *calling_uobject, UFunction *calling_ufunction, void *parameters)
+#define UE5_PROCESSEVENT_HOOK(function_hook_name) void __fastcall function_hook_name(UObjectInternal *calling_uobject, UFunctionInternal *calling_ufunction, void *parameters)
 
 // TODO: Implement UE4 & UE5 macros for ProcessInternal
 
